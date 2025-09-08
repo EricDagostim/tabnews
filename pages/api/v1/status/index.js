@@ -3,22 +3,26 @@ import database from "infra/database.js";
 async function status(request, response) {
   const updatedAt = new Date().toISOString();
 
-  var pgStatement = await database.query(
-    `SELECT 
-      version() as versao,
-      (SELECT COUNT(*) FROM pg_stat_activity) AS conexoes_abertas,
-      (SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active') as conexoes_ativas,
-      current_setting('max_connections')::int AS conexoes_maximas;
-    `,
+  const dataBaseVersionResult = await database.query("SHOW server_version;");
+  const dataBaseValueVersion = dataBaseVersionResult.rows[0].server_version;
+
+  const dataBaseActiveConnectionsResult = await database.query(
+    `SELECT count(*) FROM pg_stat_activity;`,
   );
 
-  var dados = pgStatement.rows[0];
+  const dataBaseValueActiveConnections =
+    dataBaseActiveConnectionsResult.rows[0].count;
+
+  console.log(dataBaseValueActiveConnections);
+
   response.status(200).json({
     updated_at: updatedAt,
-    postgres_version: dados.versao,
-    active_connections: parseInt(dados.conexoes_ativas),
-    opened_connections: parseInt(dados.conexoes_abertas),
-    max_connections: dados.conexoes_maximas,
+    dependencies: {
+      database: {
+        version: dataBaseValueVersion,
+        active_connections: parseInt(dataBaseValueActiveConnections),
+      },
+    },
   });
 }
 
